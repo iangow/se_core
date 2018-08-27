@@ -2,7 +2,7 @@
 
 The code here transforms XML files for conference calls supplied by Thomson Reuters into structured tables in a PostgreSQL database.
 
-## Requirements
+## 1. Requirements
 
 To use this code you will need a few things.
 
@@ -26,7 +26,7 @@ CREATE ROLE streetevents_access;
       approach.
 4. R and the following packages: `xml2`, `stringr`, `dplyr`, `parallel`, `RPostgreSQL`, `digest`
 
-## Processing core tables
+## 2. Processing core tables
 
 1. Get files from server.
 
@@ -44,14 +44,3 @@ The following three code files need to be run in the following order:
   in `streetevents.speaker_data`.
 
 The script `update_se.sh` does both of the steps above.
-
-## Processing additional tables
-
-A number of other tables are created using code from this repository. These generally depend on the
-three tables above.
-
-- `streetevents.crsp_link` is created by code in `crsp_link.sql`. 
-This uses tickers and call dates to match firms to PERMNOs, but with some data integrity checks and manual overrides.
-- `streetevents.qa_pairs` is created by `create_qa_pairs.R`.
-This table attempts to group distinguish questions from answers and group questions and answers.
-Often a single question will prompt multiple responses (e.g., the CEO answers at one level and the CFO provides more detail).
