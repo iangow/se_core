@@ -165,6 +165,10 @@ process_calls <- function(num_calls = 1000, file_list = NULL) {
 
         file_list <-
             calls %>%
+            inner_join(call_files) %>%
+            group_by(file_path) %>%
+            filter(mtime == max(mtime, na.rm = TRUE)) %>%
+            ungroup() %>%
             select(file_path, file_name, last_update) %>%
             distinct() %>%
             arrange(random()) %>%

@@ -95,8 +95,11 @@ calls <- tbl(pg, sql("SELECT * FROM streetevents.calls"))
 get_file_list <- function() {
     df <-
         call_files %>%
+        group_by(file_path) %>%
+        filter(ctime == max(ctime, na.rm = TRUE)) %>%
+        ungroup() %>%
         select(file_path, sha1) %>%
-        anti_join(calls) %>%
+        anti_join(calls, by = c("file_path", "sha1")) %>%
         select(-sha1) %>%
         collect(n=5000)
 
