@@ -234,7 +234,6 @@ process_calls <- function(num_calls = 1000, file_list = NULL) {
     }
 }
 
-system.time(while(tm <- process_calls(num_calls = 4000)) {
+system.time(while(tm <- process_calls(num_calls = 100)) {
     print(tm)
 })
-
