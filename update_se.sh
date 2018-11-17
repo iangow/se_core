@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
-rsync -avz iangow@45.113.235.201:~/uploads/ $SE_DIR
+if [ $USER == "igow" ]
+then
+  ID="iangow"
+else
+  ID=$USER
+fi
+
+rsync -avz $ID@45.113.235.201:~/uploads/ $SE_DIR
 echo "importing call_files"
 ./create_call_files.R
 echo "importing calls"
