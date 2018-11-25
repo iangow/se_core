@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-if [ $USER == "igow" ]
+if [ "$USER" == "igow" ]
 then
   ID="iangow"
 else
