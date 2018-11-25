@@ -18,7 +18,7 @@ extract_speaker_data <- function(file_path) {
 
     full_path <- file.path(se_path, file_path)
     if (!file.exists(full_path)) return(NULL)
-    file_name <- str_replace(file_path, "\\.xml$", "")
+    file_name <- str_replace(basename(file_path), "\\.xml$", "")
 
     read_data <- function(se_path, file_path) {
             file_xml <- read_xml(file.path(se_path, file_path), options = "NOENT")

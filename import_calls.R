@@ -19,7 +19,7 @@ extract_call_data <- function(file_path) {
     sha1 <- getSHA1(full_path)
     if (!file.exists(full_path)) return(NULL)
 
-    file_name <- str_replace(file_path, "\\.xml$", "")
+    file_name <- str_replace(basename(file_path), "\\.xml$", "")
     read_data <- function(se_path, file_path) {
         file_xml <- read_xml(file.path(se_path, file_path), options = "NOENT")
         last_update <- as.POSIXct(xml_attr(file_xml, "lastUpdate"),

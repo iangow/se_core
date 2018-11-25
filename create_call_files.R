@@ -18,7 +18,7 @@ streetevent.dir <- file.path(Sys.getenv("SE_DIR"))
 Sys.setenv(TZ='GMT')
 
 full_path <- list.files(streetevent.dir, pattern="*_T.xml", recursive = TRUE,
-                        include.dirs=FALSE, full.names = TRUE)
+                        include.dirs=TRUE, full.names = TRUE)
 
 file_list <-
     data_frame(full_path) %>%
