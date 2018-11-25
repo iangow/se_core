@@ -54,8 +54,10 @@ extract_speaker_data <- function(file_path) {
 
             extract_speaker <- function(speaker) {
                 temp2 <- str_match(speaker, "^(.*)\\s+\\[(\\d+)\\]")
+                temp3 <- str_match(speaker, "^.*\\[(\\d+)\\]")
                 if (dim(temp2)[2] >= 3) {
                     speaker_number <- temp2[, 3]
+                    speaker_number <- if_else(is.na(speaker_number), temp3[, 2], speaker_number)
                     full_name <- temp2[, 2]
 
                     spaces <- "[\\s\\p{WHITE_SPACE}\u3000\ua0]"
@@ -86,7 +88,7 @@ extract_speaker_data <- function(file_path) {
                        employer, role, speaker_number)
         }
 
-        pres <- sections[grepl("^(Presentation|Transcript)\n", sections)]
+        pres <- sections[grepl("^(Presentation|Transcript|presentation\\.)\\s*\n", sections)]
 
         if (length(pres) > 0) {
             pres_df <-
@@ -120,11 +122,13 @@ extract_speaker_data <- function(file_path) {
 }
 
 # Get a list of files that need to be processed ----
-library(RPostgreSQL)
-pg <- dbConnect(PostgreSQL())
+library(DBI)
+pg <- dbConnect(RPostgres::Postgres(), bigint = "integer")
 
-if (!dbExistsTable(pg, c("streetevents", "speaker_data"))) {
-    dbGetQuery(pg, "
+rs <- dbExecute(pg, "SET search_path TO streetevents, public")
+
+if (!dbExistsTable(pg, "speaker_data")) {
+    dbExecute(pg, "
         CREATE TABLE streetevents.speaker_data
            (
            file_name text,
@@ -142,8 +146,8 @@ if (!dbExistsTable(pg, c("streetevents", "speaker_data"))) {
        CREATE INDEX ON streetevents.speaker_data (file_name, last_update);")
 }
 
-if (!dbExistsTable(pg, c("streetevents", "speaker_data_dupes"))) {
-    dbGetQuery(pg, "
+if (!dbExistsTable(pg, "speaker_data_dupes")) {
+    dbExecute(pg, "
         CREATE TABLE streetevents.speaker_data_dupes
                (file_name text, last_update timestamp with time zone);
         ALTER TABLE streetevents.speaker_data_dupes OWNER TO streetevents;")
@@ -152,9 +156,9 @@ if (!dbExistsTable(pg, c("streetevents", "speaker_data_dupes"))) {
 rs <- dbDisconnect(pg)
 
 process_calls <- function(num_calls = 1000, file_list = NULL) {
-    pg <- dbConnect(PostgreSQL())
+    pg <- dbConnect(RPostgres::Postgres(), bigint = "integer")
 
-    dbExecute(pg, "SET search_path TO streetevents")
+    rs <- dbExecute(pg, "SET search_path TO streetevents")
 
     call_files <- tbl(pg, "call_files")
     calls <- tbl(pg, "calls")
@@ -166,6 +170,9 @@ process_calls <- function(num_calls = 1000, file_list = NULL) {
         file_list <-
             calls %>%
             inner_join(call_files) %>%
+            group_by(file_name, last_update) %>%
+            filter(mtime == max(mtime, na.rm = TRUE)) %>%
+            ungroup() %>%
             group_by(file_path) %>%
             filter(mtime == max(mtime, na.rm = TRUE)) %>%
             ungroup() %>%
@@ -174,7 +181,7 @@ process_calls <- function(num_calls = 1000, file_list = NULL) {
             arrange(random()) %>%
             anti_join(speaker_data, by = c("file_name", "last_update")) %>%
             anti_join(speaker_data_dupes, by = c("file_name", "last_update")) %>%
-            collect(n=num_calls)
+            collect(n = num_calls)
     }
     if (nrow(file_list)==0) return(FALSE)
     temp <- mclapply(file_list$file_path, extract_speaker_data, mc.cores=12)
@@ -208,12 +215,12 @@ process_calls <- function(num_calls = 1000, file_list = NULL) {
                 anti_join(dupes, by=c("file_name", "last_update"))
         }
 
-        rs <- dbGetQuery(pg, "SET TIME ZONE 'GMT'")
+        rs <- dbExecute(pg, "SET TIME ZONE 'GMT'")
         if (nrow(speaker_data) > 0) {
             print("Writing data to Postgres")
 
-            dbWriteTable(pg, c("streetevents", "speaker_data"),
-                         speaker_data, row.names=FALSE, append=TRUE)
+            dbWriteTable(pg, "speaker_data", speaker_data, 
+                         row.names=FALSE, append=TRUE)
         }
         print("Writing dupe data to Postgres")
 
@@ -223,7 +230,7 @@ process_calls <- function(num_calls = 1000, file_list = NULL) {
                 select(file_name, last_update) %>%
                 distinct()
 
-            dbWriteTable(pg, c("streetevents", "speaker_data_dupes"), file_path,
+            dbWriteTable(pg, "speaker_data_dupes", file_path,
                          row.names=FALSE, append=TRUE)
         }
 
@@ -234,6 +241,6 @@ process_calls <- function(num_calls = 1000, file_list = NULL) {
     }
 }
 
-system.time(while(tm <- process_calls(num_calls = 100)) {
+system.time(while(tm <- process_calls(num_calls = 5000)) {
     print(tm)
 })
