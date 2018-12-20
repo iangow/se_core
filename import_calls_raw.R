@@ -54,9 +54,9 @@ extract_call_data <- function(file_path) {
 
 pg <- dbConnect(PostgreSQL())
 
-if (!dbExistsTable(pg, c("streetevents", "calls"))) {
+if (!dbExistsTable(pg, c("streetevents", "calls_raw"))) {
     dbGetQuery(pg, "
-        CREATE TABLE streetevents.calls
+        CREATE TABLE streetevents.calls_raw
             (
               file_path text,
               sha1 text,
@@ -75,13 +75,13 @@ if (!dbExistsTable(pg, c("streetevents", "calls"))) {
               city text
             );
 
-        CREATE INDEX ON streetevents.calls (file_name, last_update);
-        CREATE INDEX ON streetevents.calls (file_path, sha1);
-        CREATE INDEX ON streetevents.calls (file_path);
+        CREATE INDEX ON streetevents.calls_raw (file_name, last_update);
+        CREATE INDEX ON streetevents.calls_raw (file_path, sha1);
+        CREATE INDEX ON streetevents.calls_raw (file_path);
 
-        ALTER TABLE streetevents.calls OWNER TO streetevents;
+        ALTER TABLE streetevents.calls_raw OWNER TO streetevents;
 
-        GRANT SELECT ON TABLE streetevents.calls TO streetevents_access;")
+        GRANT SELECT ON TABLE streetevents.calls_raw TO streetevents_access;")
 }
 rs <- dbDisconnect(pg)
 Sys.setenv(TZ='GMT')
@@ -90,7 +90,7 @@ pg <- dbConnect(PostgreSQL())
 
 call_files <- tbl(pg, sql("SELECT * FROM streetevents.call_files"))
 
-calls <- tbl(pg, sql("SELECT * FROM streetevents.calls"))
+calls <- tbl(pg, sql("SELECT * FROM streetevents.calls_raw"))
 
 get_file_list <- function() {
     df <-
@@ -113,7 +113,7 @@ while (length(file_list <- get_file_list()) > 0) {
 
     rs <- dbGetQuery(pg, "SET TIME ZONE 'GMT'")
     if (nrow(calls_new) > 0) {
-        rs <- dbWriteTable(pg, c("streetevents", "calls"), calls_new,
+        rs <- dbWriteTable(pg, c("streetevents", "calls_raw"), calls_new,
                        append = TRUE, row.names = FALSE)
     }
 }
