@@ -30,6 +30,8 @@ pg <- dbConnect(PostgreSQL())
 rs <- dbGetQuery(pg, "SET TIME ZONE 'GMT'")
 new_table <- !dbExistsTable(pg, c("streetevents", "call_files"))
 
+cat("Updating data on", Sys.getenv("PGHOST"), "\n")
+
 if (!new_table) {
 
     rs <- dbWriteTable(pg, c("streetevents", "call_files_temp"),
