@@ -88,6 +88,8 @@ Sys.setenv(TZ='GMT')
 
 pg <- dbConnect(PostgreSQL())
 
+cat("Updating data on", Sys.getenv("PGHOST"), "\n")
+
 call_files <- tbl(pg, sql("SELECT * FROM streetevents.call_files"))
 
 calls <- tbl(pg, sql("SELECT * FROM streetevents.calls_raw"))
