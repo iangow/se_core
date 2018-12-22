@@ -161,14 +161,15 @@ process_calls <- function(num_calls = 1000, file_list = NULL) {
     rs <- dbExecute(pg, "SET search_path TO streetevents")
 
     call_files <- tbl(pg, "call_files")
-    calls <- tbl(pg, "calls")
+    calls_raw <- tbl(pg, "calls_raw")
     speaker_data <- tbl(pg, "speaker_data")
     speaker_data_dupes <- tbl(pg, "speaker_data_dupes")
 
     if (is.null(file_list)) {
 
         file_list <-
-            calls %>%
+            calls_raw %>%
+            filter(!is.na(last_update)) %>%
             inner_join(call_files) %>%
             group_by(file_name, last_update) %>%
             filter(mtime == max(mtime, na.rm = TRUE)) %>%
