@@ -4,9 +4,8 @@
 # and post to PostgreSQL.
 
 # Set up stuff ----
-library(parallel)
 library(dplyr, warn.conflicts = FALSE)
-library(RPostgreSQL)
+library(DBI)
 
 getSHA1 <- function(file_name) {
     library("digest")
@@ -26,7 +25,7 @@ file_list <-
                  file_path = gsub(paste0(streetevent.dir, "/"), "", full_path,
                                                     fixed = TRUE))
 
-pg <- dbConnect(PostgreSQL())
+pg <- dbConnect(RPostgreSQL::PostgreSQL())
 rs <- dbGetQuery(pg, "SET TIME ZONE 'GMT'")
 new_table <- !dbExistsTable(pg, c("streetevents", "call_files"))
 
@@ -81,7 +80,7 @@ process_rows <- function(df) {
         ungroup() %>%
         as_tibble()
 
-    pg <- dbConnect(PostgreSQL())
+    pg <- dbConnect(RPostgreSQL::PostgreSQL())
     rs <- dbGetQuery(pg, "SET TIME ZONE 'GMT'")
 
     if (dbExistsTable(pg, c("streetevents", "call_files"))) {

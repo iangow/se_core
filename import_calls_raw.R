@@ -92,7 +92,7 @@ cat("Updating data on", Sys.getenv("PGHOST"), "\n")
 
 call_files <- tbl(pg, sql("SELECT * FROM streetevents.call_files"))
 
-calls <- tbl(pg, sql("SELECT * FROM streetevents.calls_raw"))
+calls_raw <- tbl(pg, sql("SELECT * FROM streetevents.calls_raw"))
 
 get_file_list <- function() {
     df <-
@@ -101,7 +101,7 @@ get_file_list <- function() {
         filter(ctime == max(ctime, na.rm = TRUE)) %>%
         ungroup() %>%
         select(file_path, sha1) %>%
-        anti_join(calls, by = c("file_path", "sha1")) %>%
+        anti_join(calls_raw, by = c("file_path", "sha1")) %>%
         select(-sha1) %>%
         collect(n=5000)
 
@@ -119,6 +119,11 @@ while (length(file_list <- get_file_list()) > 0) {
                        append = TRUE, row.names = FALSE)
     }
 }
-print(calls %>% count() %>% pull())
-rs <- dbDisconnect(pg)
+print(calls_raw %>% count() %>% pull())
 
+db_comment <- paste0("UPDATED USING import_calls_raw.R from ",
+                     "GitHub iangow/se_core ON ", Sys.time())
+rs <- dbExecute(pg, paste0("COMMENT ON TABLE streetevents.calls_raw IS '",
+                      db_comment, "';"))
+
+rs <- dbDisconnect(pg)
