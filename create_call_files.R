@@ -20,7 +20,7 @@ full_path <- list.files(streetevent.dir, pattern="*_T.xml", recursive = TRUE,
                         include.dirs=TRUE, full.names = TRUE)
 
 file_list <-
-    data_frame(full_path) %>%
+    tibble(full_path) %>%
     mutate(mtime = as.POSIXct(file.mtime(full_path)),
                  file_path = gsub(paste0(streetevent.dir, "/"), "", full_path,
                                                     fixed = TRUE))
@@ -46,7 +46,7 @@ if (!new_table) {
     new_files <-
         call_files_temp %>%
         select(file_path, mtime) %>%
-        anti_join(call_files) %>%
+        anti_join(call_files, by = c("file_path", "mtime")) %>%
         collect()
 
     rs <- dbGetQuery(pg, "DROP TABLE IF EXISTS streetevents.call_files_temp")
@@ -90,7 +90,8 @@ process_rows <- function(df) {
     } else {
         rs <- dbWriteTable(pg, c("streetevents", "call_files"),
                            new_files_plus2 %>% as.data.frame(), row.names=FALSE)
-
+        rs <- dbExecute(pg, "ALTER TABLE call_files OWNER TO streetevents")
+        rs <- dbExecute(pg, "GRANT SELECT ON call_files TO streetevents_access")
         rs <- dbGetQuery(pg, "
             SET maintenance_work_mem='2GB';
             CREATE INDEX ON streetevents.call_files (file_path)")

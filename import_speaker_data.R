@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-cat("Importing speaker data.")
+cat("Importing speaker data.\n")
 library(xml2)
 library(stringr)
 library(dplyr, warn.conflicts = FALSE)
@@ -143,6 +143,7 @@ if (!dbExistsTable(pg, "speaker_data")) {
         PRIMARY KEY (file_name, last_update, speaker_number, context, section));
 
        ALTER TABLE streetevents.speaker_data OWNER TO streetevents;
+       GRANT SELECT ON streetevents.speaker_data TO streetevents_access;
        CREATE INDEX ON streetevents.speaker_data (file_name, last_update);")
 }
 
@@ -150,6 +151,7 @@ if (!dbExistsTable(pg, "speaker_data_dupes")) {
     dbExecute(pg, "
         CREATE TABLE streetevents.speaker_data_dupes
                (file_name text, last_update timestamp with time zone);
+        GRANT SELECT ON streetevents.speaker_data_dupes TO streetevents_access;
         ALTER TABLE streetevents.speaker_data_dupes OWNER TO streetevents;")
 }
 
@@ -157,32 +159,27 @@ rs <- dbDisconnect(pg)
 
 process_calls <- function(num_calls = 1000, file_list = NULL) {
     pg <- dbConnect(RPostgres::Postgres(), bigint = "integer")
-
+    
+    rs <- dbExecute(pg, "SET work_mem = '3GB'")
     rs <- dbExecute(pg, "SET search_path TO streetevents")
 
-    call_files <- tbl(pg, "call_files")
-    calls_raw <- tbl(pg, "calls_raw")
+    selected_calls <- tbl(pg, "selected_calls")
     speaker_data <- tbl(pg, "speaker_data")
     speaker_data_dupes <- tbl(pg, "speaker_data_dupes")
-
+    speaker_data_all <-
+        speaker_data %>%
+        select(file_name, last_update) %>%
+        union_all(
+            speaker_data_dupes %>%
+                      select(file_name, last_update))
+    
     if (is.null(file_list)) {
 
         file_list <-
-            calls_raw %>%
-            filter(!is.na(last_update)) %>%
-            inner_join(call_files) %>%
-            group_by(file_name, last_update) %>%
-            filter(mtime == max(mtime, na.rm = TRUE)) %>%
-            ungroup() %>%
-            group_by(file_path) %>%
-            filter(mtime == max(mtime, na.rm = TRUE)) %>%
-            ungroup() %>%
-            select(file_path, file_name, last_update) %>%
+            selected_calls %>%
+            anti_join(speaker_data_all, by = c("file_name", "last_update")) %>%
             distinct() %>%
-            arrange(random()) %>%
-            anti_join(speaker_data, by = c("file_name", "last_update")) %>%
-            anti_join(speaker_data_dupes, by = c("file_name", "last_update")) %>%
-            collect(n = num_calls)
+            collect(n = num_calls) 
     }
     if (nrow(file_list)==0) return(FALSE)
     temp <- mclapply(file_list$file_path, extract_speaker_data, mc.cores=12)
@@ -193,34 +190,34 @@ process_calls <- function(num_calls = 1000, file_list = NULL) {
 
     if ("speaker_text" %in% colnames(temp_df)) {
 
-        speaker_data <-
+        speaker_data_new <-
             temp_df %>%
             filter(speaker_text != "")
 
-        print(sprintf("Speaker data has %d rows", nrow(speaker_data)))
+        print(sprintf("Speaker data has %d rows", nrow(speaker_data_new)))
 
-        if (nrow(speaker_data) == 0) {
+        if (nrow(speaker_data_new) == 0) {
             dupes <- file_list
         } else {
             dupes <-
-                speaker_data %>%
+                speaker_data_new %>%
                 group_by(file_name, last_update, speaker_number, context, section) %>%
                 filter(n() > 1) %>%
                 ungroup() %>%
                 union_all(
-                    speaker_data %>%
+                    speaker_data_new %>%
                         filter(is.na(speaker_number) | is.na(context) | is.na(section)))
 
-            speaker_data <-
-                speaker_data %>%
+            speaker_data_new <-
+                speaker_data_new %>%
                 anti_join(dupes, by=c("file_name", "last_update"))
         }
 
         rs <- dbExecute(pg, "SET TIME ZONE 'GMT'")
-        if (nrow(speaker_data) > 0) {
+        if (nrow(speaker_data_new) > 0) {
             print("Writing data to Postgres")
 
-            dbWriteTable(pg, "speaker_data", speaker_data, 
+            dbWriteTable(pg, "speaker_data", speaker_data_new, 
                          row.names=FALSE, append=TRUE)
         }
         print("Writing dupe data to Postgres")
@@ -238,10 +235,18 @@ process_calls <- function(num_calls = 1000, file_list = NULL) {
         rs <- dbDisconnect(pg)
         return(nrow(file_list)>0)
     } else {
+        rs <- dbExecute(pg, "SET TIME ZONE 'GMT'")
+        dupes <-
+            file_list %>%
+            select(file_name, last_update) %>%
+            distinct()
+        dbWriteTable(pg, "speaker_data_dupes", dupes,
+                     row.names=FALSE, append=TRUE)
+        rs <- dbDisconnect(pg)
         return(FALSE)
     }
 }
 
 system.time(while(tm <- process_calls(num_calls = 5000)) {
-    print(tm)
+    cat("New rows: ", tm, "\n")
 })
