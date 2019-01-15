@@ -6,7 +6,7 @@ else
   ID=$USER
 fi
 
-rsync -avz $ID@45.113.235.201:/home/iangow/uploads/ $SE_DIR
+rsync -avz $ID@45.113.235.201:/home/thomsonreuters/uploads/ $SE_DIR
 
 echo "Importing call_files"
 echo "$PGHOST"
