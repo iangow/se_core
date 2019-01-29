@@ -1,13 +1,4 @@
 #!/usr/bin/env bash
-if [ "$USER" == "igow" ]
-then
-  ID="iangow"
-else
-  ID=$USER
-fi
-
-rsync -avz $ID@45.113.235.201:/home/thomsonreuters/uploads/ $SE_DIR
-
 echo "Importing call_files"
 echo "$PGHOST"
 Rscript --vanilla create_call_files.R
