@@ -67,7 +67,7 @@ rs <- dbDisconnect(pg)
 process_rows <- function(df) {
     file_info <-
         file.info(df$full_path) %>%
-        as_data_frame() %>%
+        as_tibble() %>%
         transmute(file_size = size,
                   ctime = as.POSIXct(ctime))
 
