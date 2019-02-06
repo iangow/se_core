@@ -31,7 +31,7 @@ CREATE ROLE streetevents_access;
 1. Get files from server.
 
 ```
-rsync -avz iangow@45.113.235.201:~/uploads/ $SE_DIR
+rsync -avz $USER@45.113.235.201:~/uploads/ $SE_DIR
 ```
 
 2. Run basic code.
