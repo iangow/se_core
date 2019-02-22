@@ -28,22 +28,14 @@ CREATE ROLE streetevents_access;
 
 ## 2. Processing core tables
 
-1. Get files from server.
-
-```
-rsync -avz $USER@45.113.235.201:~/uploads/ $SE_DIR
-```
-
-2. Run basic code.
-
-The three code files below need to be run in the following order:
+To process the core tables, the three code files below need to be run in the following order:
 
 - The file `create_call_files.R` extracts details about the files associated with each call (e.g., `mtime`) and puts it in `streetevents.call_files`.
 - The file `import_calls.R` extracts call-level data (e.g., ticker, call time, call type) and puts it in `streetevents.calls`.
 - The file `import_speaker_data.R` parse the speaker-level data from the XML call files and puts it
   in `streetevents.speaker_data`.
 
-The script `update_se.sh` does both of the steps above.
+The script `update_se.sh` runs the three code files.
 
 ## 3. The tables used 
 
@@ -53,3 +45,11 @@ The script `update_se.sh` does both of the steps above.
 
 - `speaker_data:` Primary key is (file_name, last_update, speaker_number, context, section), where context is either "pres" (presentation) or "qa" (questions and answers) and section is an integer that is used to distinguish portions of the call where there are multiple presentation and Q&A portions of the call (with speaker_number starting from 1 in each new section).
 
+## 4. Advanced Users
+
+This section is for more advanced users wating to download and process the data.
+
+- To get the files from the server for processing.
+ ```
+rsync -avz $USER@45.113.235.201:~/uploads/ $SE_DIR
+```
