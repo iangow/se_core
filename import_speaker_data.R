@@ -140,11 +140,11 @@ if (!dbExistsTable(pg, "speaker_data")) {
            speaker_text text,
            context text,
            section integer,
-        PRIMARY KEY (file_name, last_update, speaker_number, context, section));
-
-       ALTER TABLE streetevents.speaker_data OWNER TO streetevents;
-       GRANT SELECT ON streetevents.speaker_data TO streetevents_access;
-       CREATE INDEX ON streetevents.speaker_data (file_name, last_update);")
+        PRIMARY KEY (file_name, last_update, speaker_number, context, section))")
+    
+    dbExecute(pg, "ALTER TABLE streetevents.speaker_data OWNER TO streetevents")
+    dbExecute(pg, "GRANT SELECT ON streetevents.speaker_data TO streetevents_access")
+    dbExecute(pg, "CREATE INDEX ON streetevents.speaker_data (file_name, last_update)")
 }
 
 if (!dbExistsTable(pg, "speaker_data_dupes")) {
