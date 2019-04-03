@@ -23,7 +23,7 @@ extract_call_data <- function(file_path) {
     read_data <- function(se_path, file_path) {
         file_xml <- read_xml(file.path(se_path, file_path), options = "NOENT")
         last_update <- as.POSIXct(xml_attr(file_xml, "lastUpdate"),
-                              format="%A, %B %d, %Y at %H:%M:%S%p GMT", tz = "GMT")
+                              format="%A, %B %d, %Y at %I:%M:%S%p GMT", tz = "GMT")
         event_type = xml_attr(file_xml, "eventTypeId")
         event_type_name <- xml_attr(file_xml, "eventTypeName")
         call_desc <- xml_text(xml_child(file_xml, search = "/Headline"))
@@ -31,7 +31,7 @@ extract_call_data <- function(file_path) {
         company_name <- trimws(xml_text(xml_child(file_xml, search = "/companyName")))
         company_ticker <- trimws(xml_text(xml_child(file_xml, search = "/companyTicker")))
         start_date <- as.POSIXct(xml_text(xml_child(file_xml, search = "/startDate")),
-                             format="%d-%b-%y %H:%M%p GMT", tz = "GMT")
+                             format="%d-%b-%y %I:%M%p GMT", tz = "GMT")
         company_id <- xml_text(xml_child(file_xml, search = "/companyId"))
         cusip <- xml_text(xml_child(file_xml, search = "/CUSIP"))
         sedol <- xml_text(xml_child(file_xml, search = "/SEDOL"))

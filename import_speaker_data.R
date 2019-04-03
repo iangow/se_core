@@ -23,7 +23,7 @@ extract_speaker_data <- function(file_path) {
     read_data <- function(se_path, file_path) {
             file_xml <- read_xml(file.path(se_path, file_path), options = "NOENT")
             last_update <- as.POSIXct(xml_attr(file_xml, "lastUpdate"),
-                                      format="%A, %B %d, %Y at %H:%M:%S%p GMT", tz = "GMT")
+                                      format="%A, %B %d, %Y at %I:%M:%S%p GMT", tz = "GMT")
             lines <- xml_text(xml_child(file_xml, search = "/EventStory/Body"))
             lines <- gsub("\\r\\n", "\n", lines, perl = TRUE)
             lines <- unescape_xml(lines)
