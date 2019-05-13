@@ -19,7 +19,7 @@ original_names <-
     inner_join(call_files, by = c("file_path", "sha1", "file_name")) %>%
     group_by(file_name, last_update) %>%
     filter(mtime == min(mtime, na.rm = TRUE)) %>%
-    select(file_path, file_name, last_update, company_name, company_ticker, city) %>%
+    select(sha1, file_path, file_name, last_update, company_name, call_desc, event_title, city) %>%
     ungroup() %>%
     distinct() %>%
     compute()
@@ -28,8 +28,8 @@ rs <- dbExecute(pg, "DROP TABLE IF EXISTS calls")
 
 calls <-
     calls_raw %>%
-    semi_join(original_names, by="file_path") %>%
-    select(-file_path, -sha1, -company_id, -cusip, -sedol, 
+    semi_join(original_names, by=c("sha1", "file_path")) %>%
+    select(-file_path, -sha1, -company_id, -cusip, -sedol,
            -isin) %>%
     filter(!is.na(last_update)) %>%
     distinct() %>% 
