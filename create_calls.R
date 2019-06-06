@@ -29,8 +29,7 @@ rs <- dbExecute(pg, "DROP TABLE IF EXISTS calls")
 calls <-
     calls_raw %>%
     semi_join(original_names, by=c("sha1", "file_path")) %>%
-    select(-file_path, -sha1, -company_id, -cusip, -sedol,
-           -isin) %>%
+    select(-file_path, -sha1, -company_id, -cusip, -sedol, -isin) %>%
     filter(!is.na(last_update)) %>%
     distinct() %>% 
     compute(name = "calls", temporary = FALSE)
