@@ -25,23 +25,24 @@ file_list <-
                  file_path = gsub(paste0(streetevent.dir, "/"), "", full_path,
                                                     fixed = TRUE))
 
-pg <- dbConnect(RPostgreSQL::PostgreSQL())
-rs <- dbGetQuery(pg, "SET TIME ZONE 'GMT'")
-new_table <- !dbExistsTable(pg, c("streetevents", "call_files"))
+pg <- dbConnect(RPostgres::Postgres())
+rs <- dbExecute(pg, "SET search_path TO streetevents")
+rs <- dbExecute(pg, "SET TIME ZONE 'GMT'")
+new_table <- !dbExistsTable(pg, "call_files")
 
 cat("Updating data on", Sys.getenv("PGHOST"), "\n")
 
 if (!new_table) {
 
-    rs <- dbWriteTable(pg, c("streetevents", "call_files_temp"),
+    rs <- dbWriteTable(pg, "call_files_temp",
                        file_list %>% select(file_path, mtime),
                        overwrite=TRUE, row.names=FALSE)
 
-    rs <- dbGetQuery(pg, "
-        CREATE INDEX ON streetevents.call_files_temp (file_path, mtime)")
+    rs <- dbExecute(pg, "
+        CREATE INDEX ON call_files_temp (file_path, mtime)")
 
-    call_files_temp <- tbl(pg, sql("SELECT * FROM streetevents.call_files_temp"))
-    call_files <- tbl(pg, sql("SELECT * FROM streetevents.call_files"))
+    call_files_temp <- tbl(pg, "call_files_temp")
+    call_files <- tbl(pg, "call_files")
 
     new_files <-
         call_files_temp %>%
@@ -49,7 +50,7 @@ if (!new_table) {
         anti_join(call_files, by = c("file_path", "mtime")) %>%
         collect()
 
-    rs <- dbGetQuery(pg, "DROP TABLE IF EXISTS streetevents.call_files_temp")
+    rs <- dbExecute(pg, "DROP TABLE IF EXISTS call_files_temp")
 
     if (dim(new_files)[1]>0) {
         new_files_plus <-
@@ -80,21 +81,21 @@ process_rows <- function(df) {
         ungroup() %>%
         as_tibble()
 
-    pg <- dbConnect(RPostgreSQL::PostgreSQL())
-    rs <- dbGetQuery(pg, "SET TIME ZONE 'GMT'")
-
-    if (dbExistsTable(pg, c("streetevents", "call_files"))) {
-        rs <- dbWriteTable(pg, c("streetevents", "call_files"),
-                   new_files_plus2 %>% as.data.frame(),
+    pg <- dbConnect(RPostgres::Postgres())
+    rs <- dbExecute(pg, "SET search_path TO streetevents")
+    rs <- dbExecute(pg, "SET TIME ZONE 'GMT'")
+    
+    if (dbExistsTable(pg, "call_files")) {
+        rs <- dbWriteTable(pg, "call_files",
+                   new_files_plus2,
                    append=TRUE, row.names=FALSE)
     } else {
-        rs <- dbWriteTable(pg, c("streetevents", "call_files"),
-                           new_files_plus2 %>% as.data.frame(), row.names=FALSE)
+        rs <- dbWriteTable(pg, "call_files",
+                           new_files_plus2, row.names=FALSE)
         rs <- dbExecute(pg, "ALTER TABLE call_files OWNER TO streetevents")
         rs <- dbExecute(pg, "GRANT SELECT ON call_files TO streetevents_access")
-        rs <- dbGetQuery(pg, "
-            SET maintenance_work_mem='2GB';
-            CREATE INDEX ON streetevents.call_files (file_path)")
+        rs <- dbExecute(pg, "SET maintenance_work_mem='2GB'")
+        rs <- dbExecute(pg, "CREATE INDEX ON call_files (file_path)")
     }
 
     dbDisconnect(pg)
