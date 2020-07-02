@@ -25,7 +25,43 @@ file_list <-
                  file_path = gsub(paste0(streetevent.dir, "/"), "", full_path,
                                                     fixed = TRUE))
 
+schema_exists <- function(conn, schema) {
+    sql = paste0("
+        SELECT EXISTS (
+            SELECT schema_name 
+            FROM information_schema.schemata 
+            WHERE schema_name = '", schema, "')")
+    dbGetQuery(pg, sql)[1,1]
+}
+
+role_exists <- function(conn, role) {
+    sql = paste0("
+        SELECT EXISTS (
+            SELECT 1 FROM pg_roles WHERE rolname='", role, "')")
+    dbGetQuery(pg, sql)[1,1]
+}
+
+
+
 pg <- dbConnect(RPostgres::Postgres())
+
+if (!schema_exists(pg, "streetevents")) {
+    dbExecute(pg, "CREATE SCHEMA streetevents")
+}
+
+if (!role_exists(pg, "streetevents")) {
+    dbExecute(pg, "CREATE ROLE streetevents")
+    
+}
+
+if (!role_exists(pg, "streetevents_access")) {
+    dbExecute(pg, "CREATE ROLE streetevents_access")
+    
+}
+
+rs <- dbExecute(pg, "ALTER SCHEMA streetevents OWNER TO streetevents")
+rs <- dbExecute(pg, "GRANT USAGE ON SCHEMA streetevents TO streetevents_access")
+
 rs <- dbExecute(pg, "SET search_path TO streetevents")
 rs <- dbExecute(pg, "SET TIME ZONE 'GMT'")
 new_table <- !dbExistsTable(pg, "call_files")
