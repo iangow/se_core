@@ -150,9 +150,9 @@ if (!dbExistsTable(pg, "speaker_data")) {
 if (!dbExistsTable(pg, "speaker_data_dupes")) {
     dbExecute(pg, "
         CREATE TABLE streetevents.speaker_data_dupes
-               (file_name text, last_update timestamp with time zone);
-        GRANT SELECT ON streetevents.speaker_data_dupes TO streetevents_access;
-        ALTER TABLE streetevents.speaker_data_dupes OWNER TO streetevents;")
+               (file_name text, last_update timestamp with time zone);")
+    dbExecute(pg, "GRANT SELECT ON streetevents.speaker_data_dupes TO streetevents_access;")
+    dbExecute(pg, "ALTER TABLE streetevents.speaker_data_dupes OWNER TO streetevents;")
 }
 
 rs <- dbDisconnect(pg)
