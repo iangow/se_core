@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 
-library(RPostgreSQL)
+library(DBI)
 library(dplyr, warn.conflicts = FALSE)
 library(xml2)
 library(parallel)
@@ -52,11 +52,13 @@ extract_call_data <- function(file_path) {
     return(file_data)
 }
 
-pg <- dbConnect(PostgreSQL())
+pg <- dbConnect(RPostgres::Postgres())
 
-if (!dbExistsTable(pg, c("streetevents", "calls_raw"))) {
-    dbGetQuery(pg, "
-        CREATE TABLE streetevents.calls_raw
+rs <- dbExecute(pg, "SET search_path TO streetevents")
+
+if (!dbExistsTable(pg, "calls_raw")) {
+    dbExecute(pg, "
+        CREATE TABLE calls_raw
             (
               file_path text,
               sha1 text,
@@ -73,26 +75,27 @@ if (!dbExistsTable(pg, c("streetevents", "calls_raw"))) {
               call_desc text,
               event_title text,
               city text
-            );
+            )")
+    dbExecute(pg, "CREATE INDEX ON calls_raw (file_name, last_update)")
+    dbExecute(pg, "CREATE INDEX ON calls_raw (file_path, sha1)")
+    dbExecute(pg, "CREATE INDEX ON calls_raw (file_path)")
 
-        CREATE INDEX ON streetevents.calls_raw (file_name, last_update);
-        CREATE INDEX ON streetevents.calls_raw (file_path, sha1);
-        CREATE INDEX ON streetevents.calls_raw (file_path);
+    dbExecute(pg, "ALTER TABLE calls_raw OWNER TO streetevents")
 
-        ALTER TABLE streetevents.calls_raw OWNER TO streetevents;
-
-        GRANT SELECT ON TABLE streetevents.calls_raw TO streetevents_access;")
+    dbExecute(pg, "GRANT SELECT ON TABLE calls_raw TO streetevents_access")
 }
 rs <- dbDisconnect(pg)
 Sys.setenv(TZ='GMT')
 
-pg <- dbConnect(PostgreSQL())
+pg <- dbConnect(RPostgres::Postgres())
 
 cat("Updating data on", Sys.getenv("PGHOST"), "\n")
 
-call_files <- tbl(pg, sql("SELECT * FROM streetevents.call_files"))
+rs <- dbExecute(pg, "SET search_path TO streetevents")
 
-calls_raw <- tbl(pg, sql("SELECT * FROM streetevents.calls_raw"))
+call_files <- tbl(pg, "call_files")
+
+calls_raw <- tbl(pg, "calls_raw")
 
 get_file_list <- function() {
     df <-
@@ -111,11 +114,11 @@ get_file_list <- function() {
 while (length(file_list <- get_file_list()) > 0) {
 
     calls_new <- bind_rows(mclapply(file_list,
-                                    extract_call_data, mc.cores = 24))
+                                    extract_call_data, mc.cores = 8))
 
-    rs <- dbGetQuery(pg, "SET TIME ZONE 'GMT'")
+    rs <- dbExecute(pg, "SET TIME ZONE 'GMT'")
     if (nrow(calls_new) > 0) {
-        rs <- dbWriteTable(pg, c("streetevents", "calls_raw"), calls_new,
+        rs <- dbWriteTable(pg, "calls_raw", calls_new,
                        append = TRUE, row.names = FALSE)
     }
 }
@@ -123,7 +126,7 @@ print(calls_raw %>% count() %>% pull())
 
 db_comment <- paste0("UPDATED USING import_calls_raw.R from ",
                      "GitHub iangow/se_core ON ", Sys.time())
-rs <- dbExecute(pg, paste0("COMMENT ON TABLE streetevents.calls_raw IS '",
+rs <- dbExecute(pg, paste0("COMMENT ON TABLE calls_raw IS '",
                       db_comment, "';"))
 
 rs <- dbDisconnect(pg)
